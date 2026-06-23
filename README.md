@@ -16,6 +16,7 @@ Pour lancer l'installation complète (téléchargement de la configuration, init
 ```bash
 curl -sS [https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json](https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json) | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS [https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh](https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh) | sudo bash
 
+---
 ## Actions réalisées par le script
 1 - Téléchargement sécurisé du fichier de configuration global default_Euro-Office.json.
 2 - Récupération et exécution du script de déploiement install_eurooffice.sh.
