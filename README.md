@@ -14,13 +14,13 @@ Ce dépôt contient les scripts et configurations nécessaires au déploiement a
 Pour lancer l'installation complète (téléchargement de la configuration, initialisation du conteneur Docker et injection des paramètres), connectez-vous en SSH sur votre serveur cible et exécutez la commande unique suivante :
 
 ## Actions réalisées par le script
-1 - Téléchargement sécurisé du fichier de configuration global default_Euro-Office.json.
-2 - Récupération et exécution du script de déploiement install_eurooffice.sh.
-3 - Téléchargement de l'image officielle Euro-Office depuis le registre GitHub (ghcr.io).
-4 - Nettoyage automatique si une ancienne instance du conteneur existe déjà.
-5 - Configuration et démarrage du conteneur sur le port 8085.
-6 - Injection de la configuration personnalisée dans le système de fichiers du conteneur.
-7 - Affichage dynamique de l'URL d'accès et ouverture des logs en temps réel.
+* Téléchargement sécurisé du fichier de configuration global default_Euro-Office.json.
+* Récupération et exécution du script de déploiement install_eurooffice.sh.
+* Téléchargement de l'image officielle Euro-Office depuis le registre GitHub (ghcr.io).
+* Nettoyage automatique si une ancienne instance du conteneur existe déjà.
+* Configuration et démarrage du conteneur sur le port 8085.
+* Injection de la configuration personnalisée dans le système de fichiers du conteneur.
+* Affichage dynamique de l'URL d'accès et ouverture des logs en temps réel.
 
 ```bash
 curl -sS [https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json](https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json) | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS [https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh](https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh) | sudo bash
