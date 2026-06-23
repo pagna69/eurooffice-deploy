@@ -1,4 +1,3 @@
-# eurooffice-deploy
 # Déploiement Automatisé d'Euro-Office DocumentServer
 
 Ce dépôt contient la solution de déploiement automatisé et clé en main pour installer Euro-Office DocumentServer sur un environnement Debian 13 (Trixie).
