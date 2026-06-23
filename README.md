@@ -13,7 +13,7 @@ Ce dépôt contient les scripts et configurations nécessaires au déploiement a
 
 Pour lancer l'installation complète (téléchargement de la configuration, initialisation du conteneur Docker et injection des paramètres), connectez-vous en SSH sur votre serveur cible et exécutez la commande unique suivante :
 ```bash
-curl -sS [https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json](https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json) | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS [https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh](https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh) | sudo bash
+curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh | sudo bash
 ```
 
 ## Actions réalisées par le script
