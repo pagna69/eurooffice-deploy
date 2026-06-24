@@ -27,24 +27,24 @@ curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/
 
 Lors de son exécution, le script réalise les actions suivantes de manière totalement autonome :
 
-1. **Contrôle d'accès :** Vérification de la présence des droits root.
-2. **Analyse de l'environnement (Docker) :**
-* Si Docker est absent : Ajout des clés GPG officielles, configuration des dépôts stables pour Debian 13, installation de Docker Engine / Compose, et configuration de l'utilisateur courant dans le groupe Docker.
-* Si Docker est présent : Passage immédiat à l'étape suivante.
-3. **Préparation du conteneur :**
-* Récupération (pull) de la dernière image officielle ghcr.io/euro-office/documentserver:latest.
-* Suppression et nettoyage d'une éventuelle ancienne instance d'Euro-Office portant le même nom pour éviter les conflits de port.
-* Initialisation du nouveau conteneur sur le port externe 8085.
-4. **Gestion de la configuration (default.json) :**
-* Le script vérifie la présence locale du fichier default_Euro-Office.json.
-* S'il est absent, il le télécharge automatiquement depuis votre dépôt GitHub.
-* Injection sécurisée du fichier dans le conteneur puis redémarrage de l'instance pour appliquer les modifications.
-5. **Livraison :** Calcul dynamique de l'adresse IP et affichage du tableau de bord d'accès, suivi du flux de logs en temps réel.
+* **Contrôle d'accès :** Vérification de la présence des droits root.
+* **Analyse de l'environnement (Docker) :**
+  * **Si Docker est absent :** Ajout des clés GPG officielles, configuration des dépôts stables pour Debian 13, installation de Docker Engine / Compose, et configuration de l'utilisateur courant dans le groupe Docker.
+  * **Si Docker est présent :** Passage immédiat à l'étape suivante.
+* **Préparation du conteneur :**
+  * Récupération (pull) de la dernière image officielle ghcr.io/euro-office/documentserver:latest.
+  * Suppression et nettoyage d'une éventuelle ancienne instance d'Euro-Office portant le même nom pour éviter les conflits de port.
+  * Initialisation du nouveau conteneur sur le port externe 8085.
+* **Gestion de la configuration (default.json) :**
+  * Le script vérifie la présence locale du fichier default_Euro-Office.json.
+  * S'il est absent, il le télécharge automatiquement depuis votre dépôt GitHub.
+  * Injection sécurisée du fichier dans le conteneur puis redémarrage de l'instance pour appliquer les modifications.
+* **Livraison :** Calcul dynamique de l'adresse IP et affichage du tableau de bord d'accès, suivi du flux de logs en temps réel.
 
 ## 🔍 Validation et Diagnostic post-installation
 
 Une fois l'installation terminée, le DocumentServer est immédiatement disponible à l'adresse :
-*👉 http://<IP_DU_SERVEUR>:8085
+👉 http://<IP_DU_SERVEUR>:8085
 
 ## Commandes utiles pour le support (sur le serveur)
 * Vérifier l'état du conteneur :
