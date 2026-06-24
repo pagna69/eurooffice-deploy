@@ -112,10 +112,10 @@ fi
 if [ -f "./$CONFIG_FILE" ]; then
     echo -e "${CYAN}--> Vérification et création des répertoires cibles dans le conteneur...${NC}"
     # Force la création de l'arborescence complète dans le conteneur pour éviter l'erreur de daemon
-    docker exec "$CONTAINER_NAME" mkdir -p /etc/onlyoffice/documentserver/
+    docker exec "$CONTAINER_NAME" mkdir -p /etc/euro-office/documentserver/
     
     # Copie du fichier local vers le chemin absolu du conteneur
-    docker cp "./$CONFIG_FILE" "${CONTAINER_NAME}":/etc/onlyoffice/documentserver/default.json
+    docker cp "./$CONFIG_FILE" "${CONTAINER_NAME}":/etc/euro-office/documentserver/default.json
     echo -e "${GREEN}[✓] Fichier de configuration injecté avec succès.${NC}"
 else
     echo -e "${RED}Erreur critique : Le fichier de configuration local $CONFIG_FILE reste introuvable.${NC}"
