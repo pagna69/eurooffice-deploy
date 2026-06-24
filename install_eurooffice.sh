@@ -108,8 +108,13 @@ if [ ! -f "./$CONFIG_FILE" ]; then
     fi
 fi
 
-# Injection de la configuration personnalisée (Chemin cible corrigé pour OnlyOffice)
+# Injection sécurisée de la configuration personnalisée
 if [ -f "./$CONFIG_FILE" ]; then
+    echo -e "${CYAN}--> Vérification et création des répertoires cibles dans le conteneur...${NC}"
+    # Force la création de l'arborescence complète dans le conteneur pour éviter l'erreur de daemon
+    docker exec "$CONTAINER_NAME" mkdir -p /etc/onlyoffice/documentserver/
+    
+    # Copie du fichier local vers le chemin absolu du conteneur
     docker cp "./$CONFIG_FILE" "${CONTAINER_NAME}":/etc/onlyoffice/documentserver/default.json
     echo -e "${GREEN}[✓] Fichier de configuration injecté avec succès.${NC}"
 else
