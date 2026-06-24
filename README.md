@@ -47,15 +47,15 @@ Une fois l'installation terminée, le DocumentServer est immédiatement disponib
 👉 **http://[IP_DU_SERVEUR_EURO-OFFICE]:8085**
 
 ## Commandes utiles pour le support (sur le serveur)
-* Vérifier l'état du conteneur :
+* **Vérifier l'état du conteneur :**
 ```bash
 sudo docker ps -f name=euro-office-server
 ```
-* Consulter manuellement les logs en cas de dysfonctionnement :
+* **Consulter manuellement les logs en cas de dysfonctionnement :**
 ```bash
 sudo docker logs -f euro-office-server
 ```
-* Vérifier l'application de la configuration dans le conteneur :
+* **Vérifier l'application de la configuration dans le conteneur :**
 ```bash
 sudo docker exec -it euro-office-server cat /etc/euro-office/documentserver/default.json
 ```
