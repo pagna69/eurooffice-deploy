@@ -1,8 +1,6 @@
 # Déploiement Automatisé d'Euro-Office DocumentServer
 
-Ce dépôt contient la solution de déploiement automatisé et clé en main pour installer Euro-Office DocumentServer sur un environnement Debian 13 (Trixie).
-
-Le script d'installation intègre un moteur de détection intelligent qui configure l'intégralité des prérequis (dont Docker) et récupère de manière autonome ses fichiers de configuration.
+Ce dépôt contient la solution de déploiement automatisé et clé en main pour installer Euro-Office DocumentServer sur un environnement Debian 12 (Bookworm) ou Debian 13 (Trixie). Le script d'installation intègre un moteur de détection intelligent qui configure l'intégralité des prérequis (dont Docker) et récupère de manière autonome ses fichiers de configuration.
 
 ## 📋 Prérequis matériels et système
 
