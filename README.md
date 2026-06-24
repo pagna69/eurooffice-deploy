@@ -8,9 +8,15 @@ Le script d'installation intègre un moteur de détection intelligent qui config
 
 Avant de lancer le déploiement, assurez-vous que la machine cible respecte les conditions suivantes :
 
-* Système d'exploitation : Debian 13 (Trixie) vierge ou existante.
-* Réseau : Une interface réseau active nommée ens160 (utilisée pour l'attribution et l'affichage dynamique de l'IP finale).
-* Privilèges : Accès administrateur (sudo ou root).
+* **Système d'exploitation :** Debian 12 (Bookworm) ou Debian 13 (Trixie) – installation vierge ou existante.
+* **Architecture & Privilèges :** Système 64-bit avec accès administrateur (`sudo` ou `root`) indispensable pour la configuration système et l'installation de Docker.
+* **Ressources matérielles minimales :**
+  * **Processeur :** CPU Dual-core (2 GHz ou plus).
+  * **Mémoire vive :** 4 Go de RAM minimum (6 Go recommandés pour la production).
+  * **Espace disque :** 40 Go d'espace libre (pour l'image Docker, le stockage des documents et les logs).
+* **Réseau & Connectivité :**
+  * Une interface réseau active nommée **`ens160`** (requise pour l'extraction et l'affichage dynamique de l'IP finale). *Note : Si votre interface porte un autre nom, modifiez la variable `INTERFACE` à la fin du script.*
+  * Un **accès Internet sortant** actif (ports `80` et `443`) pour permettre le téléchargement de l'image officielle sur le registre GitHub (`ghcr.io`) et la récupération automatique du fichier de configuration de secours.
 
 ## 🚀 Procédure d'installation "En un clic"
 
