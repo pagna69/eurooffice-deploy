@@ -2,7 +2,7 @@
 
 # ==============================================================================
 # Script d'installation automatisé d'Euro-Office & Docker (Unifié avec Couleurs)
-# Destiné à : Debian 13 (Trixie) avec installation automatique de Docker si absent
+# Destiné à : Debian 12 (Bookworm) / Debian 13 (Trixie)
 # Exécution requise : Exécuté directement via curl ou avec sudo ./install_eurooffice.sh
 # ==============================================================================
 
@@ -21,6 +21,9 @@ BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 NC='\033[0m' # Pas de couleur (Reset)
 
+# Gestion propre de l'interruption Ctrl+C pour restaurer les couleurs du terminal
+trap 'echo -e "${NC}"; exit 0' INT TERM
+
 echo -e "${BLUE}=== [1/4] Contrôle des privilèges d'administration ===${NC}"
 # Vérification des droits root indispensables pour l'installation système et Docker
 if [ "$EUID" -ne 0 ]; then
@@ -31,20 +34,20 @@ fi
 echo -e "${BLUE}=== [2/4] Vérification de la présence de Docker ===${NC}"
 if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}[- ] Docker n'est pas détecté sur cette machine.${NC}"
-    echo -e "${CYAN}--> Lancement de la procédure d'installation de Docker sur Debian 13...${NC}"
+    echo -e "${CYAN}--> Lancement de la procédure d'installation de Docker...${NC}"
     
-    # Mise à jour du système et installation des dépendances minimales
-    echo "   * Mise à jour des paquets et installation des dépendances..."
-    apt update && apt upgrade -y
-    apt install -y ca-certificates curl
+    # Mise à jour des index de paquets et installation des dépendances minimales
+    echo "   * Mise à jour des index des paquets et installation des dépendances..."
+    apt update
+    apt install -y ca-certificates curl gnupg
 
-    # Configuration de la clé GPG officielle de Docker
+    # Configuration de la clé GPG officielle de Docker (Utilisation du format standard .asc)
     echo "   * Ajout de la clé GPG officielle de Docker..."
     install -m 0755 -d /etc/apt/keyrings
     curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
 
-    # Ajout du dépôt Docker officiel pour Debian 13 (Trixie)
+    # Ajout du dépôt Docker officiel au format DEB822 (Recommandé pour Debian 12/13)
     echo "   * Configuration du dépôt officiel Docker..."
     tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
@@ -100,14 +103,14 @@ if [ ! -f "./$CONFIG_FILE" ]; then
     if curl -sS -o "./$CONFIG_FILE" "$GITHUB_CONFIG_URL"; then
         echo -e "${GREEN}[✓] Fichier de configuration récupéré avec succès depuis GitHub.${NC}"
     else
-        echo -e "${RED}Erreur : Impossible de télécharger le fichier de configuration de secours depuis GitHub.${NC}"
+        echo -e "${RED}Erreur : Impossible de télécharger le fichier de configuration depuis GitHub.${NC}"
         exit 1
     fi
 fi
 
-# Injection de la configuration personnalisée
+# Injection de la configuration personnalisée (Chemin cible corrigé pour OnlyOffice)
 if [ -f "./$CONFIG_FILE" ]; then
-    docker cp "./$CONFIG_FILE" "${CONTAINER_NAME}":/etc/euro-office/documentserver/default.json
+    docker cp "./$CONFIG_FILE" "${CONTAINER_NAME}":/etc/onlyoffice/documentserver/default.json
     echo -e "${GREEN}[✓] Fichier de configuration injecté avec succès.${NC}"
 else
     echo -e "${RED}Erreur critique : Le fichier de configuration local $CONFIG_FILE reste introuvable.${NC}"
