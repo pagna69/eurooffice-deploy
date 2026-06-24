@@ -44,7 +44,7 @@ Lors de son exécution, le script réalise les actions suivantes de manière tot
 ## 🔍 Validation et Diagnostic post-installation
 
 Une fois l'installation terminée, le DocumentServer est immédiatement disponible à l'adresse :
-👉 http://<IP_DU_SERVEUR>:8085
+👉 **http://[IP_DU_SERVEUR_EURO-OFFICE]:8085**
 
 ## Commandes utiles pour le support (sur le serveur)
 * Vérifier l'état du conteneur :
