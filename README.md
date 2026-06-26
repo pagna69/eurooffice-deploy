@@ -59,3 +59,6 @@ sudo docker logs -f euro-office-server
 ```bash
 sudo docker exec -it euro-office-server cat /etc/euro-office/documentserver/default.json
 ```
+ ## Documentation Officielle d'Euro-Office
+ * **Lien vers la documentation :** https://euro-office.github.io/documentation/
+
