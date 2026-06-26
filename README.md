@@ -59,7 +59,19 @@ sudo docker logs -f euro-office-server
 ```bash
 sudo docker exec -it euro-office-server cat /etc/euro-office/documentserver/default.json
 ```
+* **Mise à jour :**
+```bash
+docker pull ghcr.io/euro-office/documentserver:latest
+docker stop euro-office && docker rm euro-office
+# Relancer avec la même commande d'installation
+curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh | sudo bash
+```
+* **Désinstallation :**
+```bash
+docker stop euro-office
+docker rm euro-office
+docker rmi ghcr.io/euro-office/documentserver:latest
+```
 ## 🔗 Liens utiles
-* **Mise à jour :** https://euro-office.github.io/documentation/installation/docker/#updating
 * **Documentation :** https://euro-office.github.io/documentation/
 * **Licence :** https://euro-office.github.io/documentation/introduction/licensing/
