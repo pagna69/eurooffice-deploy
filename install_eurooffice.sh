@@ -86,7 +86,7 @@ fi
 
 # Lancement du nouveau conteneur Euro-Office
 echo -e "${CYAN}--> Lancement du conteneur...${NC}"
-docker run -d -p 8443:443 --name "$CONTAINER_NAME" --restart=always \
+docker run -d -p 8085:80 --name "$CONTAINER_NAME" --restart=always \
   -e EXAMPLE_ENABLED=true \
   -e JWT_ENABLED=false \
   ghcr.io/euro-office/documentserver:latest
@@ -132,7 +132,7 @@ ADD_IP=$(ip -4 addr show dev "$INTERFACE" 2>/dev/null | grep -oP '(?<=inet\s)\d+
 # Affichage du message final de validation en vert
 echo -e "${GREEN}=========================================================================="
 echo "                 Installation terminée avec succès !"
-echo " Euro-Office DocumentServer est accessible sur l'adresse : http://${ADD_IP}:8443"
+echo " Euro-Office DocumentServer est accessible sur l'adresse : http://${ADD_IP}:8085"
 echo -e "==========================================================================${NC}"
 
 # Affichage des logs en temps réel
