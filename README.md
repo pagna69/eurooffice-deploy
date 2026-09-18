@@ -66,9 +66,9 @@ curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/
 ```
 * **Désinstallation :**
 ```bash
-docker stop euro-office
-docker rm euro-office
-docker rmi ghcr.io/euro-office/documentserver:latest
+sudo docker stop euro-office-server
+sudo docker rm euro-office-server
+sudo docker rmi ghcr.io/euro-office/documentserver:latest
 ```
 ## 🔗 Liens utiles
 * **Documentation :** https://euro-office.github.io/documentation/
