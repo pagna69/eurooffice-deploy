@@ -44,10 +44,12 @@ fi
 usage() {
     echo "Usage : $0 [-r <RepEuroOffice>] -d <NomDnsServeur> -p <PortHttp> -s <PortHttps>"
     echo "  -r : Répertoire d'installation (optionnel, défaut : /var/www/euro-office)"
+    echo "  -d : Nom DNS / FQDN / IP du serveur (obligatoire)"
+    echo "  -p : Port HTTP externe (obligatoire)"
+    echo "  -s : Port HTTPS externe (obligatoire)"
     exit 1
 }
 
-# Définition du répertoire par défaut
 REP_EURO_OFFICE="/var/www/euro-office"
 NOM_DNS_SERVEUR=""
 PORT_HTTP=""
@@ -63,7 +65,6 @@ while getopts "r:d:p:s:" opt; do
     esac
 done
 
-# Seuls -d, -p et -s restent strictement obligatoires
 if [[ -z "$NOM_DNS_SERVEUR" || -z "$PORT_HTTP" || -z "$PORT_HTTPS" ]]; then
     fail "Les paramètres (-d, -p, -s) sont obligatoires."
 fi
@@ -87,19 +88,24 @@ if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}[- ] Docker n'est pas détecté sur cette machine.${NC}"
     echo -e "${CYAN}--> Lancement de la procédure d'installation de Docker...${NC}"
     
+    OS_ID="$(. /etc/os-release && echo "$ID")"
+    if [[ "$OS_ID" != "debian" && "$OS_ID" != "ubuntu" ]]; then
+        fail "Distribution non prise en charge ('$OS_ID'). Ce script nécessite Debian ou Ubuntu."
+    fi
+
     echo "   * Mise à jour des index des paquets et installation des dépendances..."
     apt update
     apt install -y ca-certificates curl gnupg jq
 
     echo "   * Ajout de la clé GPG officielle de Docker..."
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+    curl -fsSL "https://download.docker.com/linux/${OS_ID}/gpg" -o /etc/apt/keyrings/docker.asc
     chmod a+r /etc/apt/keyrings/docker.asc
 
-    echo "   * Configuration du dépôt officiel Docker (DEB822)..."
+    echo "   * Configuration du dépôt officiel Docker ($OS_ID - DEB822)..."
     tee /etc/apt/sources.list.d/docker.sources <<EOF
 Types: deb
-URIs: https://download.docker.com/linux/debian
+URIs: https://download.docker.com/linux/${OS_ID}
 Suites: $(. /etc/os-release && echo "$VERSION_CODENAME")
 Components: stable
 Architectures: $(dpkg --print-architecture)
