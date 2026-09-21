@@ -157,7 +157,7 @@ else
     echo -e "${DARKGRAY}Fichier de configuration $DEFAULT_JSON_PATH déjà présent.${NC}"
 fi
 
-# 2. Initialisation obligatoire de local.json pour éviter les erreurs jq
+# 2. Initialisation de local.json pour les surcharges
 LOCAL_JSON_PATH="$CONFIG_PATH/$LOCAL_CONFIG_FILE"
 if [ ! -f "$LOCAL_JSON_PATH" ]; then
     echo -e "${CYAN}--> Initialisation du fichier $LOCAL_CONFIG_FILE...${NC}"
@@ -226,6 +226,12 @@ services:
       - "${PORT_HTTP}:80"
       - "${PORT_HTTPS}:443"
     environment:
+      DB_TYPE: "postgres"
+      DB_HOST: "127.0.0.1"
+      DB_PORT: "5432"
+      DB_NAME: "eurooffice"
+      DB_USER: "eurooffice"
+      DB_PWD: "eurooffice"
       JWT_ENABLED: "false"
       JWT_SECRET: "$JWT"
       ALLOW_PRIVATE_IP_ADDRESS: "true"
