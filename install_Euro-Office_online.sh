@@ -10,6 +10,7 @@ set -e
 
 CONTAINER_NAME="euro-office-server"
 CONFIG_FILE="default.json"
+LOCAL_CONFIG_FILE="local.json"
 GITHUB_CONFIG_URL="https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json"
 IMAGE="ghcr.io/euro-office/documentserver:latest"
 
@@ -42,7 +43,7 @@ assert_port() {
 usage() {
     echo "Usage : $0 [-r <RepEuroOffice>] -d <NomDnsServeur> -p <PortHttp> -s <PortHttps>"
     echo "  -r : Répertoire de déploiement compose (optionnel, défaut : /var/www/euro-office)"
-    echo "  -d : Nom DNS / FQDN du serveur (obligatoire)"
+    echo "  -d : Nom DNS / FQDN / IP du serveur (obligatoire)"
     echo "  -p : Port HTTP externe (obligatoire)"
     echo "  -s : Port HTTPS externe (obligatoire)"
     exit 1
@@ -82,10 +83,6 @@ if [[ -z "$NOM_DNS_SERVEUR" ]]; then
     fail "NOM_DNS_SERVEUR ne peut pas être vide."
 fi
 
-if [[ ! "$NOM_DNS_SERVEUR" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]]; then
-    fail "NOM_DNS_SERVEUR contient des caractères invalides : '$NOM_DNS_SERVEUR'."
-fi
-
 # --- Initialisation des dossiers de travail et de l'arborescence fixe ---
 BASE_DIR="$(realpath -m "$REP_EURO_OFFICE")"
 CONFIG_PATH="/etc/euro-office/documentserver"
@@ -98,8 +95,15 @@ COMPOSE_PATH="$BASE_DIR/docker-compose.yml"
 
 mkdir -p "$CONFIG_PATH" "$DATA_PATH" "$LOGS_PATH" "$PRIVATE_PATH" "$CERT_PATH" "$(dirname "$DS_CONF_PATH")" "$BASE_DIR"
 
-# --- [1/4] Vérification / Installation de Docker ---
-echo -e "${BLUE}=== [1/4] Vérification de la présence de Docker ===${NC}"
+# --- [1/4] Vérification / Installation de Docker & dépendances ---
+echo -e "${BLUE}=== [1/4] Vérification des dépendances et de Docker ===${NC}"
+
+# Installation de jq si absent
+if ! command -v jq &> /dev/null; then
+    echo -e "${YELLOW}[- ] Installation de jq...${NC}"
+    apt update && apt install -y jq
+fi
+
 if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}[- ] Docker n'est pas détecté sur cette machine.${NC}"
     echo -e "${CYAN}--> Lancement de la procédure d'installation de Docker...${NC}"
@@ -140,17 +144,27 @@ fi
 # --- [2/4] Préparation des fichiers de configuration locale ---
 echo -e "${BLUE}=== [2/4] Préparation de la configuration locale ===${NC}"
 
-# Téléchargement de default.json directement dans /etc/euro-office/documentserver/
-LOCAL_JSON_PATH="$CONFIG_PATH/default.json"
-if [ ! -f "$LOCAL_JSON_PATH" ]; then
+# 1. Téléchargement de default.json dans /etc/euro-office/documentserver/
+DEFAULT_JSON_PATH="$CONFIG_PATH/$CONFIG_FILE"
+if [ ! -f "$DEFAULT_JSON_PATH" ]; then
     echo -e "${CYAN}--> Téléchargement de $CONFIG_FILE depuis GitHub dans $CONFIG_PATH...${NC}"
-    if curl -sS -o "$LOCAL_JSON_PATH" "$GITHUB_CONFIG_URL"; then
-        echo -e "${GREEN}[✓] Fichier de configuration récupéré avec succès.${NC}"
+    if curl -sS -o "$DEFAULT_JSON_PATH" "$GITHUB_CONFIG_URL"; then
+        echo -e "${GREEN}[✓] Fichier de configuration par défaut récupéré avec succès.${NC}"
     else
         fail "Impossible de télécharger le fichier de configuration depuis GitHub."
     fi
 else
-    echo -e "${DARKGRAY}Fichier de configuration $LOCAL_JSON_PATH déjà présent.${NC}"
+    echo -e "${DARKGRAY}Fichier de configuration $DEFAULT_JSON_PATH déjà présent.${NC}"
+fi
+
+# 2. Initialisation obligatoire de local.json pour éviter les erreurs jq
+LOCAL_JSON_PATH="$CONFIG_PATH/$LOCAL_CONFIG_FILE"
+if [ ! -f "$LOCAL_JSON_PATH" ]; then
+    echo -e "${CYAN}--> Initialisation du fichier $LOCAL_CONFIG_FILE...${NC}"
+    echo "{}" > "$LOCAL_JSON_PATH"
+    echo -e "${GREEN}[✓] Fichier $LOCAL_JSON_PATH créé.${NC}"
+else
+    echo -e "${DARKGRAY}Fichier $LOCAL_JSON_PATH déjà présent.${NC}"
 fi
 
 # Certificat TLS Auto-signé
