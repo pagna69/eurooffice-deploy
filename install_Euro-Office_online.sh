@@ -317,10 +317,16 @@ echo ""
     docker compose ps
 )
 
+# Détection dynamique de l'IP active du serveur
+ADD_IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || hostname -I | awk '{print $1}')
+
 if [ "$HEALTHY" = true ]; then
-    echo -e "${CYAN}Accès HTTP  : http://$NOM_DNS_SERVEUR:$PORT_HTTP/${NC}"
-    echo -e "${CYAN}Accès HTTPS : https://$NOM_DNS_SERVEUR:$PORT_HTTPS/${NC}"
-    echo -e "${GREEN}Installation terminée avec succès.${NC}"
+    echo -e "${GREEN}=========================================================================="
+    echo "                  Installation terminée avec succès !"
+    echo " Euro-Office DocumentServer est accessible sur :"
+    echo "  - HTTP  : http://${ADD_IP}:${PORT_HTTP}  (ou http://${NOM_DNS_SERVEUR}:${PORT_HTTP})"
+    echo "  - HTTPS : https://${ADD_IP}:${PORT_HTTPS} (ou https://${NOM_DNS_SERVEUR}:${PORT_HTTPS})"
+    echo -e "==========================================================================${NC}"
 else
     echo -e "${RED}[X] Le healthcheck n'a pas répondu après 2 minutes. Affichage des derniers logs du conteneur :${NC}"
     echo "----------------------------------------------------------------------"
