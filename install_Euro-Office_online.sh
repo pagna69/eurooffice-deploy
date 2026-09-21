@@ -1,35 +1,29 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
-# ==============================================================================
-# Script d'installation automatisé d'Euro-Office & Docker
-# Destiné à : Debian 12 (Bookworm) / Debian 13 (Trixie)
-# ==============================================================================
+set -euo pipefail
 
-# Arrêt immédiat du script en cas d'erreur
-set -e
-
-CONTAINER_NAME="euro-office-server"
-CONFIG_FILE="default.json"
-LOCAL_CONFIG_FILE="local.json"
-GITHUB_CONFIG_URL="https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json"
-IMAGE="ghcr.io/euro-office/documentserver:latest"
-
-# Définition des codes couleurs ANSI
-GREEN='\033[0;32m'
+# --- Couleurs pour l'affichage ---
 RED='\033[0;31m'
+GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 CYAN='\033[0;36m'
 DARKGRAY='\033[1;30m'
-NC='\033[0m' # Reset
-
-# Restauration du terminal en cas d'interruption
-trap 'echo -e "${NC}"; exit 1' INT TERM
+NC='\033[0m' # No Color
 
 # --- Fonctions utilitaires ---
 fail() {
-    echo -e "${RED}Erreur : $1${NC}" >&2
+    echo -e "${RED}ERREUR : $1${NC}" >&2
     exit 1
+}
+
+invoke_docker() {
+    local description="$1"
+    shift
+    echo -e "${DARKGRAY}> docker $*${NC}"
+    if ! docker "$@"; then
+        fail "Échec lors de l'étape : $description."
+    fi
 }
 
 assert_port() {
@@ -40,21 +34,20 @@ assert_port() {
     fi
 }
 
-usage() {
-    echo "Usage : $0 [-r <RepEuroOffice>] -d <NomDnsServeur> -p <PortHttp> -s <PortHttps>"
-    echo "  -r : Répertoire de déploiement compose (optionnel, défaut : /var/www/euro-office)"
-    echo "  -d : Nom DNS / FQDN / IP du serveur (obligatoire)"
-    echo "  -p : Port HTTP externe (obligatoire)"
-    echo "  -s : Port HTTPS externe (obligatoire)"
-    exit 1
-}
-
 # --- Vérification des privilèges root ---
 if [ "$EUID" -ne 0 ]; then
-    fail "Ce script doit être exécuté avec des privilèges d'administrateur (sudo)."
+    echo -e "${RED}Erreur : Ce script doit être exécuté avec des privilèges d'administrateur (sudo).${NC}"
+    exit 1
 fi
 
 # --- Traitement des arguments ---
+usage() {
+    echo "Usage : $0 [-r <RepEuroOffice>] -d <NomDnsServeur> -p <PortHttp> -s <PortHttps>"
+    echo "  -r : Répertoire d'installation (optionnel, défaut : /var/www/euro-office)"
+    exit 1
+}
+
+# Définition du répertoire par défaut
 REP_EURO_OFFICE="/var/www/euro-office"
 NOM_DNS_SERVEUR=""
 PORT_HTTP=""
@@ -70,47 +63,33 @@ while getopts "r:d:p:s:" opt; do
     esac
 done
 
+# Seuls -d, -p et -s restent strictement obligatoires
 if [[ -z "$NOM_DNS_SERVEUR" || -z "$PORT_HTTP" || -z "$PORT_HTTPS" ]]; then
-    fail "Les paramètres -d, -p et -s sont obligatoires."
+    fail "Les paramètres (-d, -p, -s) sont obligatoires."
 fi
 
 # --- Validation des variables ---
-assert_port "PORT_HTTP" "$PORT_HTTP"
-assert_port "PORT_HTTPS" "$PORT_HTTPS"
+assert_port "PORTHTTP" "$PORT_HTTP"
+assert_port "PORTHTTPS" "$PORT_HTTPS"
 
 NOM_DNS_SERVEUR="$(echo "$NOM_DNS_SERVEUR" | xargs)"
 if [[ -z "$NOM_DNS_SERVEUR" ]]; then
-    fail "NOM_DNS_SERVEUR ne peut pas être vide."
+    fail "NOMDNSSERVEUR ne peut pas être vide."
 fi
 
-# --- Initialisation des dossiers de travail et de l'arborescence fixe ---
-BASE_DIR="$(realpath -m "$REP_EURO_OFFICE")"
-CONFIG_PATH="/etc/euro-office/documentserver"
-DATA_PATH="/var/lib/euro-office/documentserver"
-LOGS_PATH="/var/log/euro-office/documentserver"
-PRIVATE_PATH="/var/www/euro-office/Data"
-CERT_PATH="$CONFIG_PATH/nginx/certificats"
-DS_CONF_PATH="$CONFIG_PATH/nginx/ds.conf"
-COMPOSE_PATH="$BASE_DIR/docker-compose.yml"
-
-mkdir -p "$CONFIG_PATH" "$DATA_PATH" "$LOGS_PATH" "$PRIVATE_PATH" "$CERT_PATH" "$(dirname "$DS_CONF_PATH")" "$BASE_DIR"
-
-# --- [1/4] Vérification / Installation de Docker & dépendances ---
-echo -e "${BLUE}=== [1/4] Vérification des dépendances et de Docker ===${NC}"
-
-# Installation de jq si absent
-if ! command -v jq &> /dev/null; then
-    echo -e "${YELLOW}[- ] Installation de jq...${NC}"
-    apt update && apt install -y jq
+if [[ ! "$NOM_DNS_SERVEUR" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]]; then
+    fail "NOMDNSSERVEUR contient des caractères invalides : '$NOM_DNS_SERVEUR'."
 fi
 
+# --- [1/4] Vérification et installation de Docker et dépendances ---
+echo -e "${BLUE}=== [1/4] Vérification de la présence de Docker et des outils ===${NC}"
 if ! command -v docker &> /dev/null; then
     echo -e "${YELLOW}[- ] Docker n'est pas détecté sur cette machine.${NC}"
     echo -e "${CYAN}--> Lancement de la procédure d'installation de Docker...${NC}"
     
     echo "   * Mise à jour des index des paquets et installation des dépendances..."
     apt update
-    apt install -y ca-certificates curl gnupg
+    apt install -y ca-certificates curl gnupg jq
 
     echo "   * Ajout de la clé GPG officielle de Docker..."
     install -m 0755 -d /etc/apt/keyrings
@@ -127,11 +106,11 @@ Architectures: $(dpkg --print-architecture)
 Signed-By: /etc/apt/keyrings/docker.asc
 EOF
 
-    echo "   * Installation de Docker Engine..."
+    echo "   * Installation de Docker Engine et des composants..."
     apt update
     apt install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
-    if [ -n "$SUDO_USER" ]; then
+    if [ -n "${SUDO_USER:-}" ]; then
         echo "   * Ajout de l'utilisateur '$SUDO_USER' au groupe docker..."
         usermod -aG docker "$SUDO_USER"
     fi
@@ -139,42 +118,67 @@ EOF
     echo -e "${GREEN}[✓] Docker a été installé et configuré avec succès !${NC}"
 else
     echo -e "${GREEN}[✓] Docker est déjà installé sur cette machine.${NC}"
-fi
-
-# --- [2/4] Préparation des fichiers de configuration locale ---
-echo -e "${BLUE}=== [2/4] Préparation de la configuration locale ===${NC}"
-
-# 1. Téléchargement de default.json dans /etc/euro-office/documentserver/
-DEFAULT_JSON_PATH="$CONFIG_PATH/$CONFIG_FILE"
-if [ ! -f "$DEFAULT_JSON_PATH" ]; then
-    echo -e "${CYAN}--> Téléchargement de $CONFIG_FILE depuis GitHub dans $CONFIG_PATH...${NC}"
-    if curl -sS -o "$DEFAULT_JSON_PATH" "$GITHUB_CONFIG_URL"; then
-        echo -e "${GREEN}[✓] Fichier de configuration par défaut récupéré avec succès.${NC}"
-    else
-        fail "Impossible de télécharger le fichier de configuration depuis GitHub."
+    if ! command -v jq &>/dev/null || ! command -v curl &>/dev/null; then
+        apt update && apt install -y jq curl
     fi
-else
-    echo -e "${DARKGRAY}Fichier de configuration $DEFAULT_JSON_PATH déjà présent.${NC}"
 fi
 
-# 2. Initialisation de local.json pour les surcharges
-LOCAL_JSON_PATH="$CONFIG_PATH/$LOCAL_CONFIG_FILE"
-if [ ! -f "$LOCAL_JSON_PATH" ]; then
-    echo -e "${CYAN}--> Initialisation du fichier $LOCAL_CONFIG_FILE...${NC}"
-    echo "{}" > "$LOCAL_JSON_PATH"
-    echo -e "${GREEN}[✓] Fichier $LOCAL_JSON_PATH créé.${NC}"
-else
-    echo -e "${DARKGRAY}Fichier $LOCAL_JSON_PATH déjà présent.${NC}"
+if ! docker compose version &>/dev/null; then
+    fail "Docker Compose v2 est indisponible. Vérifiez que le service Docker est démarré."
 fi
 
-# Certificat TLS Auto-signé
+# --- Préparation des chemins ---
+IMAGE="ghcr.io/euro-office/documentserver:v9.3.3"
+CONTAINER_NAME="euro-office"
+TEMP_CONTAINER_NAME="eo-temp"
+
+ROOT="$(realpath -m "$REP_EURO_OFFICE")"
+DATA_PATH="$ROOT/data"
+PRIVATE_PATH="$ROOT/private"
+LOGS_PATH="$ROOT/logs"
+CONFIG_PATH="$ROOT/config"
+CERT_PATH="$CONFIG_PATH/nginx/certificats"
+COMPOSE_PATH="$ROOT/docker-compose.yml"
+DS_CONF_PATH="$CONFIG_PATH/nginx/ds.conf"
+DEFAULT_JSON_PATH="$CONFIG_PATH/default.json"
+
+echo -e "${CYAN}=== Configuration EuroOffice Docker ===${NC}"
+echo "Répertoire : $ROOT"
+echo "Nom DNS    : $NOM_DNS_SERVEUR"
+echo "Port HTTP  : $PORT_HTTP"
+echo "Port HTTPS : $PORT_HTTPS"
+
+mkdir -p "$ROOT" "$DATA_PATH" "$PRIVATE_PATH" "$LOGS_PATH" "$CONFIG_PATH" "$CERT_PATH"
+
+# --- [2/4] Récupération de l'image et préparation de la conf ---
+echo -e "${BLUE}=== [2/4] Préparation de la configuration ===${NC}"
+echo -e "${YELLOW}Téléchargement de l'image EuroOffice...${NC}"
+invoke_docker "téléchargement de l'image Docker" pull "$IMAGE"
+
+echo -e "${YELLOW}Nettoyage du conteneur temporaire éventuel '$TEMP_CONTAINER_NAME'.${NC}"
+docker rm -f "$TEMP_CONTAINER_NAME" &>/dev/null || true
+
+echo -e "${YELLOW}Initialisation des répertoires config et logs depuis l'image...${NC}"
+invoke_docker "création du conteneur temporaire" create --name "$TEMP_CONTAINER_NAME" "$IMAGE"
+invoke_docker "copie de la configuration depuis l'image" cp "$TEMP_CONTAINER_NAME:/etc/euro-office/documentserver/." "$CONFIG_PATH"
+invoke_docker "copie des logs depuis l'image" cp "$TEMP_CONTAINER_NAME:/var/log/euro-office/documentserver/." "$LOGS_PATH"
+docker rm -f "$TEMP_CONTAINER_NAME" &>/dev/null || true
+
+if [[ ! -f "$DS_CONF_PATH" ]]; then
+    fail "Fichier introuvable après initialisation : $DS_CONF_PATH"
+fi
+if [[ ! -f "$DEFAULT_JSON_PATH" ]]; then
+    fail "Fichier introuvable après initialisation : $DEFAULT_JSON_PATH"
+fi
+
+# --- Certificat TLS Auto-signé ---
+echo -e "${YELLOW}Génération du certificat auto-signé HTTPS...${NC}"
 CERTIFICATE_FILE="$CERT_PATH/euro-office.crt"
 KEY_FILE="$CERT_PATH/euro-office.key"
 
 if [[ ! -f "$CERTIFICATE_FILE" || ! -f "$KEY_FILE" ]]; then
-    echo -e "${YELLOW}Génération du certificat auto-signé HTTPS...${NC}"
     SUBJECT_ALT_NAME="DNS:$NOM_DNS_SERVEUR,DNS:localhost,IP:127.0.0.1"
-    docker run --rm \
+    invoke_docker "génération du certificat auto-signé" run --rm \
         -v "$CERT_PATH:/certs" \
         alpine/openssl req -x509 -nodes \
         -days 3650 -newkey rsa:2048 \
@@ -182,14 +186,13 @@ if [[ ! -f "$CERTIFICATE_FILE" || ! -f "$KEY_FILE" ]]; then
         -out /certs/euro-office.crt \
         -subj "/CN=$NOM_DNS_SERVEUR" \
         -addext "subjectAltName=$SUBJECT_ALT_NAME"
-    echo -e "${GREEN}[✓] Certificat généré.${NC}"
 else
     echo -e "${DARKGRAY}Certificat existant conservé.${NC}"
 fi
 
-# Configuration Nginx (ds.conf)
-if [ ! -f "$DS_CONF_PATH" ] || ! grep -q "listen 0\.0\.0\.0:443" "$DS_CONF_PATH"; then
-    echo -e "${YELLOW}Ajout du bloc HTTPS dans ds.conf...${NC}"
+# --- Configuration Nginx (ds.conf) ---
+echo -e "${YELLOW}Ajout du bloc HTTPS dans ds.conf...${NC}"
+if ! grep -q "listen 0\.0\.0\.0:443" "$DS_CONF_PATH"; then
     cat << 'EOF' >> "$DS_CONF_PATH"
 
 server {
@@ -206,14 +209,41 @@ server {
     include /etc/nginx/includes/ds-*.conf;
 }
 EOF
-    echo -e "${GREEN}[✓] Bloc HTTPS ajouté.${NC}"
+    echo -e "${GREEN}Bloc HTTPS ajouté.${NC}"
 else
-    echo -e "${DARKGRAY}Bloc HTTPS déjà présent dans ds.conf.${NC}"
+    echo -e "${DARKGRAY}Bloc HTTPS déjà présent, ajout ignoré.${NC}"
 fi
 
-# --- [3/4] Génération Docker Compose & Déploiement ---
-echo -e "${BLUE}=== [3/4] Déploiement du conteneur via Docker Compose ===${NC}"
+# --- Modification et enrichissement de default.json ---
+echo -e "${YELLOW}Modification et validation de default.json...${NC}"
 
+# 1. Remplacements globaux (regex)
+sed -i -E 's/("rejectUnauthorized"[[:space:]]*:[[:space:]]*)true/\1false/g' "$DEFAULT_JSON_PATH"
+sed -i -E 's/("mode"[[:space:]]*:[[:space:]]*)"development"/\1"production"/g' "$DEFAULT_JSON_PATH"
+sed -i -E 's/("jwtToken"[[:space:]]*:[[:space:]]*)true/\1false/g' "$DEFAULT_JSON_PATH"
+sed -i -E 's/("blockPrivateIP"[[:space:]]*:[[:space:]]*)true/\1false/g' "$DEFAULT_JSON_PATH"
+
+# 2. Ajout du bloc FileStorage à la fin du JSON
+TMP_JSON="$(mktemp)"
+if jq '.FileStorage = {
+  "host": "",
+  "port": 4567,
+  "directory": "",
+  "silent": true
+}' "$DEFAULT_JSON_PATH" > "$TMP_JSON"; then
+    mv "$TMP_JSON" "$DEFAULT_JSON_PATH"
+    echo -e "${GREEN}default.json validé, mis à jour et augmenté de FileStorage.${NC}"
+else
+    rm -f "$TMP_JSON"
+    fail "default.json n'est plus un JSON valide après modification."
+fi
+
+# --- Gestion des droits sur les dossiers montés ---
+echo -e "${YELLOW}Ajustement des permissions des dossiers montés...${NC}"
+chmod -R 777 "$DATA_PATH" "$PRIVATE_PATH" "$LOGS_PATH" "$CONFIG_PATH"
+
+# --- Génération du secret JWT et création de docker-compose.yml ---
+echo -e "${YELLOW}Génération du secret JWT et création de docker-compose.yml...${NC}"
 JWT="$(head -c 500 /dev/urandom | tr -dc 'A-Za-z0-9' | head -c 40)"
 
 cat << EOF > "$COMPOSE_PATH"
@@ -226,12 +256,6 @@ services:
       - "${PORT_HTTP}:80"
       - "${PORT_HTTPS}:443"
     environment:
-      DB_TYPE: "postgres"
-      DB_HOST: "127.0.0.1"
-      DB_PORT: "5432"
-      DB_NAME: "eurooffice"
-      DB_USER: "eurooffice"
-      DB_PWD: "eurooffice"
       JWT_ENABLED: "false"
       JWT_SECRET: "$JWT"
       ALLOW_PRIVATE_IP_ADDRESS: "true"
@@ -252,20 +276,49 @@ services:
       retries: 3
 EOF
 
-echo -e "${CYAN}--> Démarrage de la stack avec Docker Compose...${NC}"
-docker compose -f "$COMPOSE_PATH" up -d --force-recreate
+# --- [3/4] Déploiement du conteneur ---
+echo -e "${BLUE}=== [3/4] Déploiement du conteneur Euro-Office ===${NC}"
+if [ "$(docker ps -aq -f name=^/${CONTAINER_NAME}$)" ]; then
+    echo -e "${YELLOW}--> Suppression de l'ancien conteneur détecté...${NC}"
+    docker rm -f "$CONTAINER_NAME" 2>/dev/null || true
+fi
 
-# --- [4/4] Bilan d'installation ---
-echo -e "${BLUE}=== [4/4] Finalisation ===${NC}"
+(
+    cd "$ROOT"
+    invoke_docker "démarrage du service EuroOffice" compose up -d
+)
 
-ADD_IP=$(ip route get 1.1.1.1 2>/dev/null | grep -oP 'src \K\S+' || echo "IP_SERVEUR")
+# --- [4/4] Vérification du Healthcheck ---
+echo -e "${BLUE}=== [4/4] Vérification de l'état du service ===${NC}"
+echo -e "${YELLOW}Attente de la réponse du healthcheck HTTP (démarrage des services internes)...${NC}"
+HEALTHY=false
 
-echo -e "${GREEN}=========================================================================="
-echo "                  Installation terminée avec succès !"
-echo " Euro-Office DocumentServer est accessible sur :"
-echo "  - HTTP  : http://${ADD_IP}:${PORT_HTTP} (ou http://${NOM_DNS_SERVEUR}:${PORT_HTTP})"
-echo "  - HTTPS : https://${ADD_IP}:${PORT_HTTPS} (ou https://${NOM_DNS_SERVEUR}:${PORT_HTTPS})"
-echo -e "==========================================================================${NC}"
+for ((attempt=1; attempt<=30; attempt++)); do
+    echo -ne "   * Vérification en cours... ($attempt/30)\r"
+    if HEALTH_RESPONSE=$(curl --silent --fail "http://localhost:${PORT_HTTP}/healthcheck" 2>/dev/null); then
+        if [[ "$HEALTH_RESPONSE" =~ "true" ]]; then
+            HEALTHY=true
+            echo -e "\n${GREEN}[✓] Healthcheck OK : le service répond.${NC}"
+            break
+        fi
+    fi
+    sleep 5
+done
 
-echo "Affichage des logs du conteneur en temps réel (Ctrl+C pour quitter)..."
-docker logs -f "$CONTAINER_NAME"
+echo ""
+(
+    cd "$ROOT"
+    docker compose ps
+)
+
+if [ "$HEALTHY" = true ]; then
+    echo -e "${CYAN}Accès HTTP  : http://$NOM_DNS_SERVEUR:$PORT_HTTP/${NC}"
+    echo -e "${CYAN}Accès HTTPS : https://$NOM_DNS_SERVEUR:$PORT_HTTPS/${NC}"
+    echo -e "${GREEN}Installation terminée avec succès.${NC}"
+else
+    echo -e "${RED}[X] Le healthcheck n'a pas répondu après 2 minutes. Affichage des derniers logs du conteneur :${NC}"
+    echo "----------------------------------------------------------------------"
+    docker logs --tail 30 "$CONTAINER_NAME" || true
+    echo "----------------------------------------------------------------------"
+    echo -e "${YELLOW}Si une erreur apparaît ci-dessus, supprime le dossier d'installation et relance le script.${NC}"
+fi
