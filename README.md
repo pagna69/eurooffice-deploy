@@ -51,19 +51,20 @@ Lors de son exécution, le script réalise les actions suivantes de manière tot
 
 Une fois l'installation terminée, le DocumentServer est immédiatement disponible à l'adresse :
 👉 **http://[IP_DU_SERVEUR_EURO-OFFICE]:8085**
+👉 **https://[IP_DU_SERVEUR_EURO-OFFICE]:8443**
 
 ## 🛠️ Commandes utiles pour le support (sur le serveur)
 * **Vérifier l'état du conteneur :**
 ```bash
-sudo docker ps -f name=euro-office-server
+sudo docker ps -f name=euro-office
 ```
 * **Consulter manuellement les logs en cas de dysfonctionnement :**
 ```bash
-sudo docker logs -f euro-office-server
+sudo docker logs -f euro-office
 ```
 * **Vérifier l'application de la configuration dans le conteneur :**
 ```bash
-sudo docker exec -it euro-office-server cat /etc/euro-office/documentserver/default.json
+sudo docker exec -it euro-office cat /etc/euro-office/documentserver/default.json
 ```
 * **Mise à jour :**
 ```bash
@@ -72,9 +73,9 @@ curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/
 ```
 * **Désinstallation :**
 ```bash
-sudo docker stop euro-office-server
-sudo docker rm euro-office-server
-sudo docker rmi ghcr.io/euro-office/documentserver:latest
+sudo docker stop euro-office
+sudo docker rm euro-office
+sudo docker rmi ghcr.io/euro-office/documentserver:9v3.3.3
 ```
 ## 🔗 Liens utiles
 * **Documentation :** https://euro-office.github.io/documentation/
