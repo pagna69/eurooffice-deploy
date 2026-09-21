@@ -18,10 +18,16 @@ Avant de lancer le déploiement, assurez-vous que la machine cible respecte les 
 
 ## 🚀 Procédure d'installation "En un clic"
 
-Grâce aux sécurités intégrées dans le script, vous n'avez plus besoin de télécharger manuellement le fichier de configuration JSON en amont. Connectez-vous simplement en SSH sur votre serveur Debian et exécutez la commande unique suivante :
+L'installation s'effectue directement via une commande unique, compatible avec les systèmes Debian et Ubuntu.
+Connectez-vous en SSH sur votre serveur et exécutez la commande suivante (en adaptant les valeurs à votre environnement) :
 ```bash
-curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh | sudo bash
+curl -sSL https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_Euro-Office_online.sh | sudo bash -s -- -d [NOM_DNS] -p 8085 -s 8443
 ```
+Détail des paramètres :
+-d : Nom DNS, FQDN ou adresse IP du serveur (obligatoire).
+-p : Port HTTP externe (obligatoire).
+-s : Port HTTPS externe (obligatoire).
+-r : Répertoire d'installation (optionnel, valeur par défaut : /var/www/euro-office).
 
 ## 🧠 Intelligence et étapes du script
 
