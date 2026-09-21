@@ -21,7 +21,7 @@ Avant de lancer le déploiement, assurez-vous que la machine cible respecte les 
 L'installation s'effectue directement via une commande unique, compatible avec les systèmes Debian et Ubuntu.
 Connectez-vous en SSH sur votre serveur et exécutez la commande suivante (en adaptant les valeurs à votre environnement) :
 ```bash
-curl -sSL https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_Euro-Office_online.sh | sudo bash -s -- -d [NOM_DNS] -p 8085 -s 8443
+curl -sSL https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_Euro-Office_online.sh | sudo bash -s -- -d mon-serveur.domaine.local -p 8085 -s 8443
 ```
 Détail des paramètres :
 * d : Nom DNS, FQDN ou adresse IP du serveur (obligatoire).
@@ -68,14 +68,13 @@ sudo docker exec -it euro-office cat /etc/euro-office/documentserver/default.jso
 ```
 * **Mise à jour :**
 ```bash
-docker stop euro-office && docker rm euro-office
-curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/default_Euro-Office.json | sudo tee ./default_Euro-Office.json > /dev/null && curl -sS https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_eurooffice.sh | sudo bash
+docker rm -f euro-office && curl -sSL https://raw.githubusercontent.com/pagna69/eurooffice-deploy/main/install_Euro-Office_online.sh | sudo bash -s -- -d mon-serveur.domaine.local -p 8085 -s 8443
 ```
 * **Désinstallation :**
 ```bash
 sudo docker stop euro-office
 sudo docker rm euro-office
-sudo docker rmi ghcr.io/euro-office/documentserver:9v3.3.3
+sudo docker rmi ghcr.io/euro-office/documentserver:v9.3.3
 ```
 ## 🔗 Liens utiles
 * **Documentation :** https://euro-office.github.io/documentation/
