@@ -24,10 +24,10 @@ Connectez-vous en SSH sur votre serveur et exécutez la commande suivante (en ad
 curl -sSL https://raw.githubusercontent.com/pagna69/eurooffice-deploy/refs/heads/main/install_Euro-Office_online.sh | sudo bash -s -- -d [NOM_DNS] -p 8085 -s 8443
 ```
 Détail des paramètres :
--d : Nom DNS, FQDN ou adresse IP du serveur (obligatoire).
--p : Port HTTP externe (obligatoire).
--s : Port HTTPS externe (obligatoire).
--r : Répertoire d'installation (optionnel, valeur par défaut : /var/www/euro-office).
+* d : Nom DNS, FQDN ou adresse IP du serveur (obligatoire).
+* p : Port HTTP externe (obligatoire).
+* s : Port HTTPS externe (obligatoire).
+* r : Répertoire d'installation (optionnel, valeur par défaut : /var/www/euro-office).
 
 ## 🧠 Intelligence et étapes du script
 
