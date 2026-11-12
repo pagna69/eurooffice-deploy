@@ -349,6 +349,7 @@ docker compose -f "$COMPOSE_PATH" up -d
 
 log "Attente de la réponse du healthcheck HTTP..."
 HEALTHY=0
+response=""
 for attempt in $(seq 1 60); do
     if response="$(curl --silent --show-error --fail "http://127.0.0.1:${PORT_HTTP}/healthcheck" 2>/dev/null)" && grep -q 'true' <<<"$response"; then
         HEALTHY=1
@@ -369,4 +370,3 @@ fi
 log "Accès HTTP  : http://$DNS_NAME:$PORT_HTTP/"
 log "Accès HTTPS : https://$DNS_NAME:$PORT_HTTPS/"
 log "Installation terminée."
-```
