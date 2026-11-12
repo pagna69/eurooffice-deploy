@@ -309,7 +309,40 @@ normalize_volume_permissions
 
 log "Génération du secret JWT et création de docker-compose.yml..."
 JWT_SECRET="$(openssl rand -hex 40)"
-cat > "$COMPOSE_PATH" <<EOF "$COMPOSE_PATH" "$CONFIG_PATH:/etc/euro-office/documentserver$VOLUME_SUFFIX" "$CONTAINER_NAME" "$DATA_PATH:/var/lib/euro-office/documentserver$VOLUME_SUFFIX" "$DNS_NAME:host-gateway" "$IMAGE" "$JWT_SECRET" "$LOGS_PATH:/var/log/euro-office/documentserver$VOLUME_SUFFIX" "$PORT_HTTP:80" "$PORT_HTTPS:443" "$PRIVATE_PATH:/var/www/euro-office/Data$VOLUME_SUFFIX" "-f", "1g" "2" "Validation "curl", "false" "http://localhost:80/healthcheck"] "true" "unless-stopped" - -f 0600 10s 3 30s ALLOW_PRIVATE_IP_ADDRESS: Compose..." EOF EXAMPLE_ENABLED: JWT_ENABLED: JWT_SECRET: NGINX_WORKER_PROCESSES: WOPI_ENABLED: ["CMD", chmod compose config container_name: docker du environment: euro-office: extra_hosts: fichier healthcheck: image: interval: log ports: restart: retries: services: shm_size: test: timeout: volumes:>/dev/null
+cat > "$COMPOSE_PATH" <<EOF
+services:
+  euro-office:
+    image: "$IMAGE"
+    container_name: "$CONTAINER_NAME"
+    restart: "unless-stopped"
+    shm_size: "1g"
+    ports:
+      - "$PORT_HTTP:80"
+      - "$PORT_HTTPS:443"
+    environment:
+      JWT_ENABLED: "false"
+      JWT_SECRET: "$JWT_SECRET"
+      ALLOW_PRIVATE_IP_ADDRESS: "true"
+      EXAMPLE_ENABLED: "false"
+      WOPI_ENABLED: "false"
+      NGINX_WORKER_PROCESSES: "2"
+    extra_hosts:
+      - "$DNS_NAME:host-gateway"
+    volumes:
+      - "$DATA_PATH:/var/lib/euro-office/documentserver$VOLUME_SUFFIX"
+      - "$PRIVATE_PATH:/var/www/euro-office/Data$VOLUME_SUFFIX"
+      - "$LOGS_PATH:/var/log/euro-office/documentserver$VOLUME_SUFFIX"
+      - "$CONFIG_PATH:/etc/euro-office/documentserver$VOLUME_SUFFIX"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:80/healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+EOF
+chmod 0600 "$COMPOSE_PATH"
+
+log "Validation du fichier Compose..."
+docker compose -f "$COMPOSE_PATH" config >/dev/null
 
 log "Démarrage du service Euroffice..."
 docker compose -f "$COMPOSE_PATH" up -d
@@ -336,3 +369,4 @@ fi
 log "Accès HTTP  : http://$DNS_NAME:$PORT_HTTP/"
 log "Accès HTTPS : https://$DNS_NAME:$PORT_HTTPS/"
 log "Installation terminée."
+```
