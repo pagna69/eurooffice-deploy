@@ -19,12 +19,12 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
 
     log_step "2. Configuration de la clé GPG Docker"
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL [https://download.docker.com/linux/debian/gpg](https://download.docker.com/linux/debian/gpg) | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
     chmod a+r /etc/apt/keyrings/docker.gpg
 
     log_step "3. Ajout du dépôt APT Docker"
     echo \
-      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] [https://download.docker.com/linux/debian](https://download.docker.com/linux/debian) \
+      "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
       $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
       tee /etc/apt/sources.list.d/docker.list > /dev/null
 
@@ -317,7 +317,7 @@ docker compose -f "$COMPOSE_PATH" up -d
 log "Attente de la réponse du healthcheck HTTP..."
 HEALTHY=0
 for attempt in $(seq 1 60); do
-    if response="$(curl --silent --show-error --fail "[http://127.0.0.1](http://127.0.0.1):${PORT_HTTP}/healthcheck" 2>/dev/null)" && grep -q 'true' <<<"$response"; then
+    if response="$(curl --silent --show-error --fail "http://127.0.0.1:${PORT_HTTP}/healthcheck" 2>/dev/null)" && grep -q 'true' <<<"$response"; then
         HEALTHY=1
         break
     fi
