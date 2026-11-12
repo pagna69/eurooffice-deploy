@@ -5,21 +5,54 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-# ==========================================
-# 1. INSTALLATION DE DOCKER & DOCKER COMPOSE
-# ==========================================
 log_step() {
     echo -e "\n\033[1;34m=== $* ===\033[0m"
 }
 
+fail() {
+    echo "ERREUR : $*" >&2
+    exit 1
+}
+
+log() {
+    echo "[$(date '+%F %T')] $*"
+}
+
+[[ "${EUID}" -eq 0 ]] || fail "Lancez ce script avec sudo ou en tant que root."
+
+# ==========================================
+# 1. PRÉREQUIS SYSTÈME & INSTALLATION DOCKER
+# ==========================================
+apt_update_clean() {
+    local max_attempts=3
+    local attempt=1
+    while (( attempt <= max_attempts )); do
+        rm -rf /var/lib/apt/lists/*
+        apt-get clean
+        if apt-get update -o Acquire::http::No-Cache=True -o Acquire::BrokenProxy=True; then
+            return 0
+        fi
+        echo "[AVERTISSEMENT] Échec apt-get update (tentative $attempt/$max_attempts), nouvelle tentative dans 5s..." >&2
+        sleep 5
+        ((attempt++))
+    done
+    fail "Impossible de mettre à jour les index APT après $max_attempts tentatives (miroir Debian en cours de synchronisation ou problème réseau)."
+}
+
+if command -v apt-get >/dev/null 2>&1; then
+    log_step "1. Mise à jour APT et installation des prérequis système"
+    apt_update_clean
+    apt-get install -y ca-certificates curl gnupg openssl python3
+fi
+
 if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
-    log_step "1. Installation des dépendances et de Docker"
-    apt-get update
-    apt-get install -y ca-certificates curl gnupg
+    if ! command -v apt-get >/dev/null 2>&1; then
+        fail "Docker n'est pas installé et apt-get est indisponible. Installez Docker manuellement (ex: dnf install docker-ce) avant de relancer."
+    fi
 
     log_step "2. Configuration de la clé GPG Docker"
     install -m 0755 -d /etc/apt/keyrings
-    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+    curl -fsSL https://download.docker.com/linux/debian/gpg | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
     chmod a+r /etc/apt/keyrings/docker.gpg
 
     log_step "3. Ajout du dépôt APT Docker"
@@ -29,7 +62,7 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
       tee /etc/apt/sources.list.d/docker.list > /dev/null
 
     log_step "4. Installation des paquets Docker Engine et Compose"
-    apt-get update
+    apt_update_clean
     apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
     log_step "5. Démarrage et activation du service Docker"
