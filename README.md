@@ -52,7 +52,7 @@ Les réglages appliqués par défaut par le script (notamment la désactivation 
 Connectez-vous en SSH sur votre serveur et exécutez la commande suivante en adaptant les paramètres à votre environnement :
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/pagna69/eurooffice-deploy/main/install-euro-office-linux.sh | sudo bash -s -- \
+curl -fsSL "https://raw.githubusercontent.com/pagna69/eurooffice-deploy/main/install-euro-office-linux.sh?t=$(date +%s)" | tr -d '\r' | sudo bash -s -- \
   --dns euro-office.efalia.com \
   --http 8085 \
   --https 8443
