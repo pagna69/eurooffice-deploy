@@ -154,5 +154,5 @@ sudo journalctl -u docker -n 200 --no-pager
 cd /opt/euro-office
 sudo docker compose down
 # Vérifiez vos sauvegardes avant d'exécuter la suppression :
-# sudo rm -rf /opt/euro-office
+sudo rm -rf /opt/euro-office
 ````
