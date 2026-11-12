@@ -8,7 +8,7 @@ Le script gère l'intégralité du déploiement : installation de Docker & Docke
 
 ## ⚠️ Important — Validation éditeur avant production
 
-Les réglages appliqués par défaut par le script (notamment la désactivation de JWT et l'autorisation des adresses IP privées) facilitent l'intégration initiale avec une application cliente (ex. GED), mais réduisent les protections de sécurité. **Ces paramètres doivent être validés avec l'éditeur ou l'intégrateur avant toute mise en production.**
+Les réglages appliqués par défaut par le script (notamment la désactivation de JWT et l'autorisation des adresses IP privées) facilitent l'intégration initiale avec une application cliente (ex. Multigest version 9.6), mais réduisent les protections de sécurité. **Ces paramètres doivent être validés avec l'éditeur ou l'intégrateur avant toute mise en production.**
 
 ---
 
