@@ -25,11 +25,13 @@ log() {
 # 0. DÉTECTION DE L'OS
 # ==========================================
 OS_ID="unknown"
+VERSION_MAJOR=""
 CODENAME=""
 if [[ -r /etc/os-release ]]; then
     # shellcheck disable=SC1091
     . /etc/os-release
     OS_ID="${ID:-unknown}"
+    VERSION_MAJOR="${VERSION_ID%%.*}"
     CODENAME="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
 fi
 
@@ -82,22 +84,35 @@ case "$OS_ID" in
         ;;
 
     almalinux|rocky|rhel|centos)
-        log_step "1. Installation des prérequis système ($OS_ID)"
-        # --allowerasing évite les conflits entre curl et curl-minimal sur installations minimales RHEL/Alma
+        log_step "1. Installation des prérequis système ($OS_ID $VERSION_MAJOR)"
         dnf install -y --allowerasing ca-certificates curl openssl python3
+
+        # Sur EL10 (AlmaLinux 10+), xt_addrtype est retiré du noyau par défaut :
+        # on configure le backend nftables natif de Docker + modules noyau complémentaires si dispos
+        if [[ "$VERSION_MAJOR" -ge 10 ]] 2>/dev/null; then
+            dnf install -y kernel-modules-extra || true
+            modprobe xt_addrtype 2>/dev/null || true
+            mkdir -p /etc/systemd/system/docker.service.d
+            cat > /etc/systemd/system/docker.service.d/firewall-backend.conf <<'EOF'
+[Service]
+Environment="DOCKER_FIREWALL_BACKEND=nftables"
+EOF
+            systemctl daemon-reload
+        fi
 
         if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
             log_step "2. Ajout du dépôt officiel Docker CE ($OS_ID)"
-            # Méthode universelle compatible dnf4 (AlmaLinux 9) et dnf5 (AlmaLinux 10)
             curl -fsSL https://download.docker.com/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker-ce.repo
 
             log_step "3. Installation de Docker Engine et Compose"
             dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
             log_step "4. Démarrage et activation du service Docker"
+            systemctl restart firewalld 2>/dev/null || true
             systemctl enable --now docker
         else
             echo "[INFO] Docker et Docker Compose sont déjà installés."
+            systemctl enable --now docker
         fi
         ;;
 
