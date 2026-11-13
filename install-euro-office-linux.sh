@@ -87,11 +87,13 @@ case "$OS_ID" in
         log_step "1. Installation des prérequis système ($OS_ID $VERSION_MAJOR)"
         dnf install -y --allowerasing ca-certificates curl openssl python3
 
-        # Sur EL10 (AlmaLinux 10+), le module xt_addrtype est dans kernel-modules-extra
+        # Sur EL10 (AlmaLinux 10+), gestion automatique de xt_addrtype / nftables sans reboot
         if [[ "$VERSION_MAJOR" -ge 10 ]] 2>/dev/null; then
             dnf install -y kernel-modules-extra || true
             if ! modprobe xt_addrtype 2>/dev/null; then
-                fail "Le module noyau 'xt_addrtype' est absent pour le noyau actif ($(uname -r)) suite à une mise à jour système. Exécutez 'sudo reboot' puis relancez le script."
+                log "Noyau non redémarré ($(uname -r)) : bascule automatique de Docker sur le backend nftables natif..."
+                mkdir -p /etc/docker
+                printf '{\n  "firewall-backend": "nftables"\n}\n' > /etc/docker/daemon.json
             fi
         fi
 
@@ -103,7 +105,6 @@ case "$OS_ID" in
             dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
             log_step "4. Démarrage et activation du service Docker"
-            systemctl restart firewalld 2>/dev/null || true
             systemctl enable --now docker
         else
             echo "[INFO] Docker et Docker Compose sont déjà installés."
