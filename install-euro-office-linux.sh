@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Script d'installation combiné : Docker + Euro-Office Document Server
-# Compatible : Debian 12/13, Ubuntu 22.04/24.04, AlmaLinux 9/10
+# Compatible 100% : Debian 12/13, Ubuntu 22.04/24.04, AlmaLinux 9/10 (x86_64)
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -21,12 +21,16 @@ log() {
 
 [[ "${EUID}" -eq 0 ]] || fail "Lancez ce script avec sudo ou en tant que root."
 
-# Détection de la distribution
+# ==========================================
+# 0. DÉTECTION DE L'OS
+# ==========================================
 OS_ID="unknown"
+CODENAME=""
 if [[ -r /etc/os-release ]]; then
     # shellcheck disable=SC1091
     . /etc/os-release
     OS_ID="${ID:-unknown}"
+    CODENAME="${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}"
 fi
 
 # ==========================================
@@ -48,18 +52,14 @@ apt_update_clean() {
     fail "Impossible de mettre à jour les index APT après $max_attempts tentatives."
 }
 
-if command -v apt-get >/dev/null 2>&1; then
-    log_step "1. Mise à jour APT et installation des prérequis système ($OS_ID)"
-    apt_update_clean
-    apt-get install -y ca-certificates curl gnupg openssl python3
-elif command -v dnf >/dev/null 2>&1; then
-    log_step "1. Installation des prérequis système ($OS_ID)"
-    dnf install -y ca-certificates curl dnf-plugins-core openssl python3
-fi
+case "$OS_ID" in
+    debian|ubuntu)
+        [[ -n "$CODENAME" ]] || fail "Impossible de déterminer le nom de code de la version ($OS_ID)."
+        log_step "1. Mise à jour APT et installation des prérequis ($OS_ID $CODENAME)"
+        apt_update_clean
+        DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg openssl python3
 
-if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
-    case "$OS_ID" in
-        debian|ubuntu)
+        if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
             log_step "2. Configuration de la clé GPG et du dépôt Docker ($OS_ID)"
             install -m 0755 -d /etc/apt/keyrings
             curl -fsSL "https://download.docker.com/linux/${OS_ID}/gpg" | gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg
@@ -67,34 +67,50 @@ if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>
 
             echo \
               "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS_ID} \
-              ${VERSION_CODENAME} stable" | \
+              ${CODENAME} stable" | \
               tee /etc/apt/sources.list.d/docker.list > /dev/null
 
             log_step "3. Installation de Docker Engine et Compose"
             apt_update_clean
-            apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-            ;;
-        almalinux|rocky|rhel|centos)
-            log_step "2. Ajout du dépôt officiel Docker ($OS_ID)"
-            dnf config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+            DEBIAN_FRONTEND=noninteractive apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+            log_step "4. Démarrage et activation du service Docker"
+            systemctl enable --now docker
+        else
+            echo "[INFO] Docker et Docker Compose sont déjà installés."
+        fi
+        ;;
+
+    almalinux|rocky|rhel|centos)
+        log_step "1. Installation des prérequis système ($OS_ID)"
+        # --allowerasing évite les conflits entre curl et curl-minimal sur installations minimales RHEL/Alma
+        dnf install -y --allowerasing ca-certificates curl openssl python3
+
+        if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+            log_step "2. Ajout du dépôt officiel Docker CE ($OS_ID)"
+            # Méthode universelle compatible dnf4 (AlmaLinux 9) et dnf5 (AlmaLinux 10)
+            curl -fsSL https://download.docker.com/linux/centos/docker-ce.repo -o /etc/yum.repos.d/docker-ce.repo
 
             log_step "3. Installation de Docker Engine et Compose"
             dnf install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
-            ;;
-        *)
-            fail "Distribution non supportée pour l'installation automatique de Docker : '$OS_ID'. Installez Docker manuellement avant de relancer."
-            ;;
-    esac
 
-    log_step "4. Démarrage et activation du service Docker"
-    systemctl enable --now docker
+            log_step "4. Démarrage et activation du service Docker"
+            systemctl enable --now docker
+        else
+            echo "[INFO] Docker et Docker Compose sont déjà installés."
+        fi
+        ;;
 
-    log_step "5. Vérification des installations Docker"
-    docker version --format 'Docker Engine Version: {{.Server.Version}}'
-    docker compose version
-else
-    echo "[INFO] Docker et Docker Compose sont déjà installés."
-fi
+    *)
+        if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
+            fail "Distribution '$OS_ID' non reconnue pour l'installation automatique. Installez Docker manuellement avant de relancer."
+        fi
+        echo "[INFO] Distribution '$OS_ID' : Docker déjà présent, poursuite du déploiement."
+        ;;
+esac
+
+docker version --format 'Docker Engine Version: {{.Server.Version}}'
+docker compose version
 
 # ==========================================
 # 2. INSTALLATION D'EURO-OFFICE
