@@ -87,18 +87,12 @@ case "$OS_ID" in
         log_step "1. Installation des prérequis système ($OS_ID $VERSION_MAJOR)"
         dnf install -y --allowerasing ca-certificates curl openssl python3
 
-        # Sur EL10 (AlmaLinux 10+), si xt_addrtype est absent du noyau actif (avant reboot),
-        # on désactive la gestion iptables de Docker et on active le masquerade firewalld
+        # Sur EL10 (AlmaLinux 10+), on cible en priorité kernel-modules-extra du noyau ACTIF
+        # pour éviter tout décalage de version et éviter un reboot obligatoire
         if [[ "$VERSION_MAJOR" -ge 10 ]] 2>/dev/null; then
-            dnf install -y kernel-modules-extra || true
+            dnf install -y "kernel-modules-extra-$(uname -r)" 2>/dev/null || dnf install -y kernel-modules-extra || true
             if ! modprobe xt_addrtype 2>/dev/null; then
-                log "Module xt_addrtype absent du noyau actif ($(uname -r)) : contournement NAT via firewalld (sans reboot)..."
-                mkdir -p /etc/docker
-                printf '{\n  "iptables": false,\n  "ip6tables": false\n}\n' > /etc/docker/daemon.json
-                if systemctl is-active --quiet firewalld; then
-                    firewall-cmd --zone=public --add-masquerade --permanent >/dev/null 2>&1 || true
-                    firewall-cmd --reload >/dev/null 2>&1 || true
-                fi
+                log "AVERTISSEMENT : xt_addrtype indisponible sur $(uname -r) (un redémarrage sera nécessaire après mise à jour du noyau)."
             fi
         fi
 
