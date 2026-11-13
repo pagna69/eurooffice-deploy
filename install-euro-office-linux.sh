@@ -128,7 +128,14 @@ apt_update_clean() {
 case "$OS_ID" in
     debian|ubuntu)
         [[ -n "$CODENAME" ]] || fail "Impossible de déterminer le nom de code de la version ($OS_ID)."
-        log_step "1. Mise à jour APT et installation des prérequis ($OS_ID $CODENAME)"
+        log_step "1. Configuration APT, mise à jour et installation des prérequis ($OS_ID $CODENAME)"
+
+        # Contournement du bug HTTP Pipeline / Tried to start delayed item sur APT
+        cat << 'EOF' > /etc/apt/apt.conf.d/99fix-http
+Acquire::http::Pipeline-Depth "0";
+Acquire::Queue-Mode "access";
+EOF
+
         apt_update_clean
         DEBIAN_FRONTEND=noninteractive apt-get install -y ca-certificates curl gnupg openssl python3
 
