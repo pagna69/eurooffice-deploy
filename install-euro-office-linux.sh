@@ -87,13 +87,18 @@ case "$OS_ID" in
         log_step "1. Installation des prérequis système ($OS_ID $VERSION_MAJOR)"
         dnf install -y --allowerasing ca-certificates curl openssl python3
 
-        # Sur EL10 (AlmaLinux 10+), gestion automatique de xt_addrtype / nftables sans reboot
+        # Sur EL10 (AlmaLinux 10+), si xt_addrtype est absent du noyau actif (avant reboot),
+        # on désactive la gestion iptables de Docker et on active le masquerade firewalld
         if [[ "$VERSION_MAJOR" -ge 10 ]] 2>/dev/null; then
             dnf install -y kernel-modules-extra || true
             if ! modprobe xt_addrtype 2>/dev/null; then
-                log "Noyau non redémarré ($(uname -r)) : bascule automatique de Docker sur le backend nftables natif..."
+                log "Module xt_addrtype absent du noyau actif ($(uname -r)) : contournement NAT via firewalld (sans reboot)..."
                 mkdir -p /etc/docker
-                printf '{\n  "firewall-backend": "nftables"\n}\n' > /etc/docker/daemon.json
+                printf '{\n  "iptables": false,\n  "ip6tables": false\n}\n' > /etc/docker/daemon.json
+                if systemctl is-active --quiet firewalld; then
+                    firewall-cmd --zone=public --add-masquerade --permanent >/dev/null 2>&1 || true
+                    firewall-cmd --reload >/dev/null 2>&1 || true
+                fi
             fi
         fi
 
