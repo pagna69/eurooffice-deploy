@@ -140,7 +140,7 @@ Usage:
 
 Options:
   --dir PATH       Répertoire d'installation (défaut: /opt/euro-office)
-  --dns NAME       Nom DNS du serveur (défaut: euro-office.efalia.com)
+  --dns NAME       Nom DNS du serveur (défaut: localhost)
   --http PORT      Port HTTP exposé par l'hôte (défaut: 8085)
   --https PORT     Port HTTPS exposé par l'hôte (défaut: 8443)
   --help           Afficher cette aide
@@ -148,15 +148,6 @@ Options:
 Exemple:
   sudo ./install-euro-office-linux.sh --dns euro-office.efalia.com
 EOF
-}
-
-fail() {
-    echo "ERREUR : $*" >&2
-    exit 1
-}
-
-log() {
-    echo "[$(date '+%F %T')] $*"
 }
 
 run_docker() {
@@ -218,6 +209,13 @@ validate_dns() {
         fail "Le nom DNS contient des caractères invalides : '$value'."
 }
 
+# Nettoie les espaces insécables éventuels issus d'un copier-coller
+CLEAN_ARGS=()
+for arg in "$@"; do
+    CLEAN_ARGS+=("${arg//$'\xc2\xa0'/}")
+done
+set -- "${CLEAN_ARGS[@]}"
+
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --dir)
@@ -240,8 +238,6 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ "${EUID}" -eq 0 ]] || fail "Lancez ce script avec sudo ou en tant que root."
-
 assert_command curl
 assert_command openssl
 assert_command python3
@@ -261,6 +257,7 @@ DS_CONF_PATH="$CONFIG_PATH/nginx/ds.conf"
 DEFAULT_JSON_PATH="$CONFIG_PATH/default.json"
 
 log "=== Installation Euroffice Docker Linux ==="
+log "OS détecté : $OS_ID $VERSION_MAJOR"
 log "Répertoire : $ROOT"
 log "Nom DNS    : $DNS_NAME"
 log "Port HTTP  : $PORT_HTTP"
