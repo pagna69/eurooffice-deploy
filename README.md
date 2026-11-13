@@ -15,10 +15,12 @@ Les réglages appliqués par défaut par le script (notamment la désactivation 
 ## 1. Prérequis
 
 ### 1.1 Systèmes d'exploitation supportés
-* **AlmaLinux 9 ou AlmaLinux 10** (installation 64 bits — `x86_64`, maintenue à jour)
-* **Debian 12 ou Debian 13** (installation 64 bits — `x86_64`, maintenue à jour)
 
-> **Note :** Bien que le script gère la détection SELinux pour les systèmes dérivés de RHEL/AlmaLinux, l'installation automatique intégrée de Docker utilise `apt-get` et le dépôt officiel Docker Debian. Pour AlmaLinux, Docker doit être installé préalablement via `dnf`.
+- **AlmaLinux 8, 9 ou 10** (installation 64 bits — `x86_64` / `x86_64_v2` / `x86_64_v3`, maintenue à jour)
+- **Debian 12 (Bookworm) ou Debian 13 (Trixie)** (installation 64 bits — `x86_64`, maintenue à jour)
+- **Ubuntu 22.04 LTS (Jammy) ou Ubuntu 24.04 LTS (Noble)** (installation 64 bits — `x86_64`, maintenue à jour)
+
+> **Note :** Le script détecte automatiquement la distribution via `/etc/os-release` et installe Docker Engine ainsi que Docker Compose v2 via le dépôt officiel adapté (`apt-get` pour Debian/Ubuntu, `dnf` pour AlmaLinux/RHEL). Sur AlmaLinux/RHEL, il gère également automatiquement l'étiquetage SELinux des volumes (`:Z`), le module noyau `xt_addrtype` (`kernel-modules-extra`) et le pare-feu `firewalld` sans nécessiter de redémarrage préalable.
 
 ### 1.2 Dimensionnement matériel recommandé
 
