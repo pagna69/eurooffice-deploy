@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Script d'installation combiné : Docker + Euro-Office Document Server
-# Compatible 100% : Debian 12/13, Ubuntu 22.04/24.04, AlmaLinux 9/10 (x86_64)
+# Compatible 100% : Debian 12/13, Ubuntu 22.04/24.04, AlmaLinux 8/9/10 (toutes versions noyau)
 #
 set -Eeuo pipefail
 IFS=$'\n\t'
@@ -22,8 +22,79 @@ log() {
 [[ "${EUID}" -eq 0 ]] || fail "Lancez ce script avec sudo ou en tant que root."
 
 # ==========================================
-# 0. DÉTECTION DE L'OS
+# 0. PARAMÈTRES, ARGUMENTS & DÉTECTION OS
 # ==========================================
+IMAGE="ghcr.io/euro-office/documentserver:v9.3.7"
+CONTAINER_NAME="euro-office"
+TEMP_CONTAINER_NAME="eo-temp"
+ROOT="/opt/euro-office"
+DNS_NAME="localhost"
+PORT_HTTP="8085"
+PORT_HTTPS="8443"
+
+usage() {
+    cat <<'EOF'
+Usage:
+  sudo ./install-euro-office-linux.sh [options]
+
+Options:
+  --dir PATH       Répertoire d'installation (défaut: /opt/euro-office)
+  --dns NAME       Nom DNS du serveur (défaut: localhost)
+  --http PORT      Port HTTP exposé par l'hôte (défaut: 8085)
+  --https PORT     Port HTTPS exposé par l'hôte (défaut: 8443)
+  --help           Afficher cette aide
+
+Exemple:
+  sudo ./install-euro-office-linux.sh --dns euro-office.efalia.com
+EOF
+}
+
+assert_port() {
+    local name="$1" value="$2"
+    [[ "$value" =~ ^[0-9]+$ ]] || fail "$name doit être un numéro de port. Valeur reçue : '$value'."
+    (( value >= 1 && value <= 65535 )) || fail "$name doit être compris entre 1 et 65535. Valeur reçue : '$value'."
+}
+
+validate_dns() {
+    local value="$1"
+    [[ -n "$value" ]] || fail "Le nom DNS ne peut pas être vide."
+    [[ "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] || \
+        fail "Le nom DNS contient des caractères invalides : '$value'."
+}
+
+# Nettoie les espaces insécables éventuels issus d'un copier-coller
+CLEAN_ARGS=()
+for arg in "$@"; do
+    CLEAN_ARGS+=("${arg//$'\xc2\xa0'/}")
+done
+set -- "${CLEAN_ARGS[@]}"
+
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --dir)
+            [[ $# -ge 2 ]] || fail "Valeur manquante pour --dir."
+            ROOT="$2"; shift 2 ;;
+        --dns)
+            [[ $# -ge 2 ]] || fail "Valeur manquante pour --dns."
+            DNS_NAME="$2"; shift 2 ;;
+        --http)
+            [[ $# -ge 2 ]] || fail "Valeur manquante pour --http."
+            PORT_HTTP="$2"; shift 2 ;;
+        --https)
+            [[ $# -ge 2 ]] || fail "Valeur manquante pour --https."
+            PORT_HTTPS="$2"; shift 2 ;;
+        --help|-h)
+            usage; exit 0 ;;
+        *)
+            usage >&2
+            fail "Option inconnue : $1" ;;
+    esac
+done
+
+assert_port PORTHTTP "$PORT_HTTP"
+assert_port PORTHTTPS "$PORT_HTTPS"
+validate_dns "$DNS_NAME"
+
 OS_ID="unknown"
 VERSION_MAJOR=""
 CODENAME=""
@@ -87,12 +158,21 @@ case "$OS_ID" in
         log_step "1. Installation des prérequis système ($OS_ID $VERSION_MAJOR)"
         dnf install -y --allowerasing ca-certificates curl openssl python3
 
-        # Sur EL10 (AlmaLinux 10+), on cible en priorité kernel-modules-extra du noyau ACTIF
-        # pour éviter tout décalage de version et éviter un reboot obligatoire
-        if [[ "$VERSION_MAJOR" -ge 10 ]] 2>/dev/null; then
+        # Adaptation universelle toutes versions de noyau (EL8, EL9, EL10+) :
+        # 1. On vérifie/charge xt_addrtype sur le noyau actif $(uname -r)
+        # 2. Si absent (noyau mis à jour sans reboot), on contourne via firewalld sans bloquer
+        if ! modprobe xt_addrtype 2>/dev/null; then
             dnf install -y "kernel-modules-extra-$(uname -r)" 2>/dev/null || dnf install -y kernel-modules-extra || true
             if ! modprobe xt_addrtype 2>/dev/null; then
-                log "AVERTISSEMENT : xt_addrtype indisponible sur $(uname -r) (un redémarrage sera nécessaire après mise à jour du noyau)."
+                log "Module xt_addrtype indisponible sur le noyau actif ($(uname -r)) : activation du mode NAT compatible sans reboot..."
+                mkdir -p /etc/docker
+                printf '{\n  "iptables": false,\n  "ip6tables": false\n}\n' > /etc/docker/daemon.json
+                if systemctl is-active --quiet firewalld; then
+                    firewall-cmd --zone=public --add-masquerade --permanent >/dev/null 2>&1 || true
+                    firewall-cmd --zone=public --add-port="${PORT_HTTP}/tcp" --permanent >/dev/null 2>&1 || true
+                    firewall-cmd --zone=public --add-port="${PORT_HTTPS}/tcp" --permanent >/dev/null 2>&1 || true
+                    firewall-cmd --reload >/dev/null 2>&1 || true
+                fi
             fi
         fi
 
@@ -125,31 +205,6 @@ docker compose version
 # ==========================================
 # 2. INSTALLATION D'EURO-OFFICE
 # ==========================================
-IMAGE="ghcr.io/euro-office/documentserver:v9.3.7"
-CONTAINER_NAME="euro-office"
-TEMP_CONTAINER_NAME="eo-temp"
-ROOT="/opt/euro-office"
-DNS_NAME="localhost"
-PORT_HTTP="8085"
-PORT_HTTPS="8443"
-
-usage() {
-    cat <<'EOF'
-Usage:
-  sudo ./install-euro-office-linux.sh [options]
-
-Options:
-  --dir PATH       Répertoire d'installation (défaut: /opt/euro-office)
-  --dns NAME       Nom DNS du serveur (défaut: localhost)
-  --http PORT      Port HTTP exposé par l'hôte (défaut: 8085)
-  --https PORT     Port HTTPS exposé par l'hôte (défaut: 8443)
-  --help           Afficher cette aide
-
-Exemple:
-  sudo ./install-euro-office-linux.sh --dns euro-office.efalia.com
-EOF
-}
-
 run_docker() {
     log "+ docker $*"
     docker "$@"
@@ -196,55 +251,9 @@ assert_command() {
     command -v "$1" >/dev/null 2>&1 || fail "La commande '$1' est introuvable."
 }
 
-assert_port() {
-    local name="$1" value="$2"
-    [[ "$value" =~ ^[0-9]+$ ]] || fail "$name doit être un numéro de port. Valeur reçue : '$value'."
-    (( value >= 1 && value <= 65535 )) || fail "$name doit être compris entre 1 et 65535. Valeur reçue : '$value'."
-}
-
-validate_dns() {
-    local value="$1"
-    [[ -n "$value" ]] || fail "Le nom DNS ne peut pas être vide."
-    [[ "$value" =~ ^[A-Za-z0-9]([A-Za-z0-9.-]{0,251}[A-Za-z0-9])?$ ]] || \
-        fail "Le nom DNS contient des caractères invalides : '$value'."
-}
-
-# Nettoie les espaces insécables éventuels issus d'un copier-coller
-CLEAN_ARGS=()
-for arg in "$@"; do
-    CLEAN_ARGS+=("${arg//$'\xc2\xa0'/}")
-done
-set -- "${CLEAN_ARGS[@]}"
-
-while [[ $# -gt 0 ]]; do
-    case "$1" in
-        --dir)
-            [[ $# -ge 2 ]] || fail "Valeur manquante pour --dir."
-            ROOT="$2"; shift 2 ;;
-        --dns)
-            [[ $# -ge 2 ]] || fail "Valeur manquante pour --dns."
-            DNS_NAME="$2"; shift 2 ;;
-        --http)
-            [[ $# -ge 2 ]] || fail "Valeur manquante pour --http."
-            PORT_HTTP="$2"; shift 2 ;;
-        --https)
-            [[ $# -ge 2 ]] || fail "Valeur manquante pour --https."
-            PORT_HTTPS="$2"; shift 2 ;;
-        --help|-h)
-            usage; exit 0 ;;
-        *)
-            usage >&2
-            fail "Option inconnue : $1" ;;
-    esac
-done
-
 assert_command curl
 assert_command openssl
 assert_command python3
-
-assert_port PORTHTTP "$PORT_HTTP"
-assert_port PORTHTTPS "$PORT_HTTPS"
-validate_dns "$DNS_NAME"
 
 ROOT="$(readlink -f "$ROOT")"
 DATA_PATH="$ROOT/data"
@@ -257,7 +266,7 @@ DS_CONF_PATH="$CONFIG_PATH/nginx/ds.conf"
 DEFAULT_JSON_PATH="$CONFIG_PATH/default.json"
 
 log "=== Installation Euroffice Docker Linux ==="
-log "OS détecté : $OS_ID $VERSION_MAJOR"
+log "OS détecté : $OS_ID $VERSION_MAJOR (noyau $(uname -r))"
 log "Répertoire : $ROOT"
 log "Nom DNS    : $DNS_NAME"
 log "Port HTTP  : $PORT_HTTP"
