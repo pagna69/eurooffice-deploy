@@ -24,7 +24,7 @@ log() {
 # ==========================================
 # 0. PARAMÈTRES, ARGUMENTS & DÉTECTION OS
 # ==========================================
-IMAGE="ghcr.io/euro-office/documentserver:v9.3.7.1"
+IMAGE="ghcr.io/euro-office/documentserver:v9.3.7-1"
 CONTAINER_NAME="euro-office"
 TEMP_CONTAINER_NAME="eo-temp"
 ROOT="/opt/euro-office"
