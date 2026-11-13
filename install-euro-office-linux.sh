@@ -87,17 +87,12 @@ case "$OS_ID" in
         log_step "1. Installation des prérequis système ($OS_ID $VERSION_MAJOR)"
         dnf install -y --allowerasing ca-certificates curl openssl python3
 
-        # Sur EL10 (AlmaLinux 10+), xt_addrtype est retiré du noyau par défaut :
-        # on configure le backend nftables natif de Docker + modules noyau complémentaires si dispos
+        # Sur EL10 (AlmaLinux 10+), le module xt_addrtype est dans kernel-modules-extra
         if [[ "$VERSION_MAJOR" -ge 10 ]] 2>/dev/null; then
             dnf install -y kernel-modules-extra || true
-            modprobe xt_addrtype 2>/dev/null || true
-            mkdir -p /etc/systemd/system/docker.service.d
-            cat > /etc/systemd/system/docker.service.d/firewall-backend.conf <<'EOF'
-[Service]
-Environment="DOCKER_FIREWALL_BACKEND=nftables"
-EOF
-            systemctl daemon-reload
+            if ! modprobe xt_addrtype 2>/dev/null; then
+                fail "Le module noyau 'xt_addrtype' est absent pour le noyau actif ($(uname -r)) suite à une mise à jour système. Exécutez 'sudo reboot' puis relancez le script."
+            fi
         fi
 
         if ! command -v docker >/dev/null 2>&1 || ! docker compose version >/dev/null 2>&1; then
